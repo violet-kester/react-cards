@@ -1,70 +1,43 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import DrawButton from "./DrawButton"
+import Button from "./Button"
 import Card from "./Card"
+
+const BASE_URL = "https://deckofcardsapi.com/api/deck/"
 
 /**
  * CardGame
  *
  * state:
- * decks: deck of cards object
- * card: current card object
+ * decks: deck of cards object, cards remaining in deck, isLoading boolean
+ * card: array of drawn card objects
  *
  * props:
  * -
  *
- * CardGame -> { Card, DrawButton }
+ * CardGame -> { Card, Button }
  *
  */
 
-// {
-//   "success": true,
-//   "deck_id": "3p40paa87x90",
-//   "shuffled": true,
-//   "remaining": 52
-// }
-
-// {
-//   "success": true,
-//   "deck_id": "kxozasf3edqu",
-//   "cards": [
-//       {
-//           "code": "6H",
-//           "image": "https://deckofcardsapi.com/static/img/6H.png",
-//           "images": {
-//                         "svg": "https://deckofcardsapi.com/static/img/6H.svg",
-//                         "png": "https://deckofcardsapi.com/static/img/6H.png"
-//                     },
-//           "value": "6",
-//           "suit": "HEARTS"
-//       },
-//       {
-//           "code": "5S",
-//           "image": "https://deckofcardsapi.com/static/img/5S.png",
-//           "images": {
-//                         "svg": "https://deckofcardsapi.com/static/img/5S.svg",
-//                         "png": "https://deckofcardsapi.com/static/img/5S.png"
-//                     },
-//           "value": "5",
-//           "suit": "SPADES"
-//       }
-//   ],
-//   "remaining": 50
-// }
-
 function CardGame() {
-  const [card, setCard] = useState();
+  const [cards, setCards] = useState([]);
   const [deck, setDeck] = useState({
     data: null,
+    numCardsLeft: null,
+    cardsLeft: false,
     isLoading: true
   });
 
-  //
+  console.log("CardGame cards state: ", cards, "deck state: ", deck);
+
+  // get new deck on mount
   useEffect(function fetchDeckWhenMounted() {
     async function fetchDeck() {
-      const deckResult = await axios.get("https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1");
+      const deckResult = await axios.get(`${BASE_URL}new/shuffle/?deck_count=1`);
       setDeck({
         data: deckResult.data,
+        numCardsLeft: deckResult.remaining,
+        cardsLeft: true,
         isLoading: false
       });
     }
@@ -73,17 +46,34 @@ function CardGame() {
 
   // draw a card
   async function drawCard() {
-    const response = await axios.get(`https://deckofcardsapi.com/api/deck/${deck.data.deck_id}/draw/?count=1`);
+    if(deck.numCardsLeft === 0) {
+      setDeck(curr => {
+        curr.cardsLeft = false;
+        return { ...curr };
+      }) 
+    }
+    const response = await axios.get(`${BASE_URL}${deck.data.deck_id}/draw/?count=2`);
     const drawnCard = response.data.cards[0];
-    setCard(drawnCard);
+    setCards(curr => {
+      curr.unshift(drawnCard);
+      return [...curr];
+    });
+    setDeck(curr => {
+      curr.numCardsLeft = response.data.remaining;
+      return { ...curr };
+    });
   }
 
   if (deck.isLoading) return <i>Loading deck...</i>;
 
   return (
     <div className="CardGame">
-      <DrawButton drawCard={drawCard} />
-      {card && <Card />}
+      <Button handleClick={drawCard} message="Draw a card" />
+      {!deck.cardsLeft &&
+        <p>"Error: No cards remaining. Please reshuffle."</p>
+      }
+      {cards.length > 0 && 
+      cards.map(c => <Card key={c.code} imageSrc={c.image} />)}
     </div>
   );
 }

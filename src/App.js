@@ -6,10 +6,10 @@ import './App.css';
  * App
  *
  * state:
- * -
+ * - none
  *
  * props:
- * -
+ * - none
  *
  * App -> CardGame
  *
